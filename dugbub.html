@@ -69,6 +69,7 @@
 			let rayBottom;
             let rayTop;
             let rayForward;
+            let rayChin;
             let rayBackward;
             let raySideRight;
             let raySideLeft;
@@ -170,7 +171,7 @@
 							break;
 
 						case 'Space':
-							if ( canJump === true ) velocity.y += 300;
+							if ( canJump === true ) velocity.y += 100;
 							canJump = false;
 							break;
 
@@ -211,7 +212,8 @@
 
 				rayBottom = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), 0, 10 );
                 rayTop = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, 1, 0 ), 0, 10 );
-                rayForward = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, 0, 1 ), 0, 10 ); 
+                rayForward = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, 0, 1 ), 0, 10 );
+                rayChin = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, 0, 1 ), 0, 10 );  
                 rayBackward = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, 0, -1 ), 0, 10 );
                 raySideRight = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 1, 0, 0 ), 0, 10 );
                 raySideLeft = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( -1, 0, 0 ), 0, 10 );
@@ -328,22 +330,31 @@
 
                     // Top
                     rayTop.ray.origin.copy(playerObject.position);
-                   // rayTop.ray.origin.y += 0.25; // Adjust this value if needed
 
                     const intersectTop = rayTop.intersectObjects(objects, false);
                     const onObjectTop = intersectTop.length > 0;
 
                     // Forward
                     rayForward.ray.origin.copy(playerObject.position);
-                    rayForward.ray.origin.z += 0.25; // Adjust this value if needed
                     rayForward.ray.direction.set(0, 0, 1).applyQuaternion(playerObject.quaternion);
 
                     const intersectForward = rayForward.intersectObjects(objects, false);
                     const onObjectForward = intersectForward.length > 0;
 
+                    // Chin
+                    rayChin.ray.origin.copy(playerObject.position);
+
+                    // Only rotate the rayChin direction based on the y-axis rotation
+                    const playerQuaternionCopy = playerObject.quaternion.clone();
+                    playerQuaternionCopy.setFromEuler(new THREE.Euler(0, playerObject.rotation.y, 0));
+
+                    rayChin.ray.direction.set(0, 0, -1).applyQuaternion(playerQuaternionCopy);
+
+                    const intersectChin = rayChin.intersectObjects(objects, false);
+                    const onObjectChin = intersectChin.length > 0;
+
                     // Backward
                     rayBackward.ray.origin.copy(playerObject.position);
-                    rayBackward.ray.origin.z -= 0.25; // Adjust this value if needed
                     rayBackward.ray.direction.set(0, 0, -1).applyQuaternion(playerObject.quaternion);
 
                     const intersectBackward = rayBackward.intersectObjects(objects, false);
@@ -351,7 +362,6 @@
 
                     // Right
                     raySideRight.ray.origin.copy(playerObject.position);
-                    raySideRight.ray.origin.x += 0.25; // Adjust this value if needed
                     raySideRight.ray.direction.set(1, 0, 0).applyQuaternion(playerObject.quaternion);
 
                     const intersectRight = raySideRight.intersectObjects(objects, false);
@@ -359,7 +369,6 @@
 
                     // Left
                     raySideLeft.ray.origin.copy(playerObject.position);
-                    raySideLeft.ray.origin.x -= 0.25; // Adjust this value if needed
                     raySideLeft.ray.direction.set(-1, 0, 0).applyQuaternion(playerObject.quaternion);
 
                     const intersectLeft = raySideLeft.intersectObjects(objects, false);
@@ -393,6 +402,11 @@
 
 					if ( onObjectForward === true ) {
 						velocity.z = Math.min( 0, velocity.z );
+					}
+
+                    if ( onObjectChin === true ) {
+						velocity.z = Math.max( 0, velocity.z );
+                        console.log("AYO")
 					}
 
                     if ( onObjectBackward === true ) {
