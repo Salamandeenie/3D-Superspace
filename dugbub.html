@@ -6,6 +6,10 @@
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		
 		<style>
+            html, body {
+                margin: 0% 0%;
+                height: 100%;
+            }
 			#blocker {
 				position: absolute;
 				width: 100%;
@@ -166,7 +170,7 @@
 							break;
 
 						case 'Space':
-							if ( canJump === true ) velocity.y += 150;
+							if ( canJump === true ) velocity.y += 300;
 							canJump = false;
 							break;
 
@@ -324,7 +328,7 @@
 
                     // Top
                     rayTop.ray.origin.copy(playerObject.position);
-                    rayTop.ray.origin.y += 0.25; // Adjust this value if needed
+                   // rayTop.ray.origin.y += 0.25; // Adjust this value if needed
 
                     const intersectTop = rayTop.intersectObjects(objects, false);
                     const onObjectTop = intersectTop.length > 0;
@@ -368,7 +372,7 @@
 					velocity.x -= velocity.x * 10.0 * delta;
 					velocity.z -= velocity.z * 10.0 * delta;
 
-					velocity.y -= 9.8 * 100.0 * delta; // 100.0 = mass
+					velocity.y -= 5.8 * 50.0 * delta; // 100.0 = mass
 
 					direction.z = Number( moveForward ) - Number( moveBackward );
 					direction.x = Number( moveRight ) - Number( moveLeft );
