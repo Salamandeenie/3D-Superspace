@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<HTML>
+
+<head>
+<title>WebGL Hello World</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+</head>
+
+
+<body>
+    <canvas id="c" data-engine="three.js r160" style="touch-action: none;" width="1920" height="641"></canvas>
+</body>
+
+<style>
+html, body {
+    margin: 0;
+    height: 100%;
+}
+#c {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+</style>
+
+<script type="importmap">
+{
+    "imports": 
+    {
+        "three": "./mods/three/build/three.module.js",
+        "three/addons/": "./mods/three/examples/jsm/"
+
+    }
+}
+  
+</script>
+
+
+<script type="module">
+   
+
+	import * as THREE from 'three';
+	import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+	import {FirstPersonControls} from './mods/three/examples/jsm/controls/FirstPersonControls.js';
+
+function main() {
+
+	const canvas = document.querySelector( '#c' );
+	const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
+
+	const fov = 45;
+	const aspect = 2; // the canvas default
+	const near = 0.1;
+	const far = 100;
+	const camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
+	camera.position.set( 0, 10, 20 );
+
+	const controls = new FirstPersonControls(camera, document.body);
+	controls.movementSpeed = 150;
+	controls.lookSpeed = 1;
+
+	const scene = new THREE.Scene();
+	scene.background = new THREE.Color( 'black' );
+
+	// // Ground
+
+		const planeSize = 40;
+
+		const loader = new THREE.TextureLoader();
+		const texture = loader.load( 'resources/images/checker.png' );
+		texture.wrapS = THREE.RepeatWrapping;
+		texture.wrapT = THREE.RepeatWrapping;
+		texture.magFilter = THREE.NearestFilter;
+		texture.colorSpace = THREE.SRGBColorSpace;
+		const repeats = planeSize / 2;
+		texture.repeat.set( repeats, repeats );
+
+		const planeGeo = new THREE.PlaneGeometry( planeSize, planeSize );
+		const planeMat = new THREE.MeshPhongMaterial( {
+			map: texture,
+			side: THREE.DoubleSide,
+		} );
+		const ground = new THREE.Mesh( planeGeo, planeMat );
+		ground.rotation.x = Math.PI * - .5;
+		scene.add( ground );
+
+	//
+
+	// // Cube
+	const cubeTexture = loader.load('resources/images/checker.png');
+	cubeTexture.wrapS = THREE.RepeatWrapping;
+	cubeTexture.wrapT = THREE.RepeatWrapping;
+	cubeTexture.repeat.set(1, 1); // Adjust the repeat values to control the number of repetitions
+
+	const cubeSize = 4;
+	const cubeGeo = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+	const cubeMat = new THREE.MeshPhongMaterial({ map: cubeTexture }); // Apply the texture to the material
+
+	const cube = new THREE.Mesh(cubeGeo, cubeMat);
+	cube.position.set(cubeSize + 1, cubeSize / 2, 0);
+	scene.add(cube);
+
+
+	//
+
+	// // Sphere
+
+		const sphereRadius = 3;
+		const sphereWidthDivisions = 32;
+		const sphereHeightDivisions = 16;
+		const sphereGeo = new THREE.SphereGeometry( sphereRadius, sphereWidthDivisions, sphereHeightDivisions );
+		const sphereMat = new THREE.MeshPhongMaterial( { color: '#CA8' } );
+		const sphere = new THREE.Mesh( sphereGeo, sphereMat );
+		sphere.position.set( - sphereRadius - 1, sphereRadius + 2, 0 );
+		scene.add( sphere );
+
+	//
+
+	class ColorGUIHelper {
+
+		constructor( object, prop ) {
+
+			this.object = object;
+			this.prop = prop;
+
+		}
+		get value() {
+
+			return `#${this.object[ this.prop ].getHexString()}`;
+
+		}
+		set value( hexString ) {
+
+			this.object[ this.prop ].set( hexString );
+
+		}
+
+	}
+
+	function makeXYZGUI( gui, vector3, name, onChangeFn ) {
+
+		const folder = gui.addFolder( name );
+		folder.add( vector3, 'x', - 10, 10 ).onChange( onChangeFn );
+		folder.add( vector3, 'y', 0, 10 ).onChange( onChangeFn );
+		folder.add( vector3, 'z', - 10, 10 ).onChange( onChangeFn );
+		folder.open();
+
+	}
+
+	{
+
+		const color = 0xFFFFFF;
+		const intensity = 150;
+		const light = new THREE.PointLight( color, intensity );
+		light.position.set( 0, 10, 0 );
+		scene.add( light );
+
+		const helper = new THREE.PointLightHelper( light );
+		scene.add( helper );
+
+		function updateLight() {
+
+			//light.target.updateMatrixWorld();
+			helper.update();
+
+		}
+
+		updateLight();
+
+		const gui = new GUI();
+		gui.addColor( new ColorGUIHelper( light, 'color' ), 'value' ).name( 'color' );
+		gui.add( light, 'intensity', 0, 5, 0.01 );
+        gui.add(light, 'distance', 0, 40).onChange(updateLight);
+
+		makeXYZGUI( gui, light.position, 'position', updateLight );
+
+	}
+
+	function resizeRendererToDisplaySize( renderer ) {
+
+		const canvas = renderer.domElement;
+		const width = canvas.clientWidth;
+		const height = canvas.clientHeight;
+		const needResize = canvas.width !== width || canvas.height !== height;
+		if ( needResize ) {
+
+			renderer.setSize( width, height, false );
+
+		}
+
+		return needResize;
+
+	}
+
+	var omegaTime = 0; // Time between this frame and the next one
+	function fixedUpdate( time )
+	{
+		const deltaTime = time - omegaTime; // Calc elapsed time since last frame
+		cube.rotation.y = (deltaTime/1000);
+
+		controls.update(deltaTime);
+		renderer.render(scene, camera);
+
+		
+		requestAnimationFrame( fixedUpdate );
+	}
+
+	function render() {
+
+		if ( resizeRendererToDisplaySize( renderer ) ) {
+
+			const canvas = renderer.domElement;
+			camera.aspect = canvas.clientWidth / canvas.clientHeight;
+			camera.updateProjectionMatrix();
+
+		}
+
+		renderer.render( scene, camera );
+
+		requestAnimationFrame( render );
+
+	}
+
+	requestAnimationFrame( fixedUpdate );
+	requestAnimationFrame( render );
+
+}
+
+main();
+
+</script>
+
+</html>
