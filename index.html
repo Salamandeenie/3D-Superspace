@@ -1,235 +1,450 @@
 <!DOCTYPE html>
-<HTML>
+<html lang="en">
+	<head>
+		<title>Supercyber-Space</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		
+		<style>
+            html, body {
+                margin: 0% 0%;
+                height: 100%;
+            }
+			#blocker {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0,0,0,0.5);
+			}
 
-<head>
-<title>WebGL Hello World</title>
-<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
-</head>
+			#instructions {
+				width: 100%;
+				height: 100%;
+
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+
+				text-align: center;
+				font-size: 14px;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+        <div id="data"><div id="rotx">TEST</div><div id="roty">TEST</div><div id="rotz">TEST</div></div>
+		<div id="blocker">
+			<div id="instructions">
+				<p style="font-size:36px">
+					Click to play
+				</p>
+				<p>
+					Move: WASD<br/>
+					Jump: SPACE<br/>
+					Look: MOUSE
+				</p>
+			</div>
+		</div>
+
+		<script type="importmap">
+			{
+				"imports": {
+                    "three": "./mods/three/build/three.module.js",
+                    "three/addons/": "./mods/three/examples/jsm/"
+            
+				}
+			}
+		</script>
+
+		<script type="module">
 
 
-<body>
-    <canvas id="c" data-engine="three.js r160" style="touch-action: none;" width="1920" height="641"></canvas>
-</body>
+import * as THREE from 'three';
 
-<style>
-html, body {
-    margin: 0% 0%;
-    height: 100%;
-}
-#c {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-</style>
+import { PointerLockControls } from './mods/three/examples/jsm/controls/PointerLockControls.js';
 
-<script type="importmap">
+let camera, scene, renderer, controls;
+
+const objects = [];
+
+let rayBottom;
+let rayTop;
+let rayForward;
+let rayBackward;
+let raySideRight;
+let raySideLeft;
+
+let moveForward = false;
+let moveBackward = false;
+let moveLeft = false;
+let moveRight = false;
+let canJump = false;
+
+let prevTime = performance.now();
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+const vertex = new THREE.Vector3();
+const color = new THREE.Color();
+
+class LightBox extends THREE.Mesh {
+constructor(distance = 5, height = 0.5, width = 4, depth = 10) 
 {
-    "imports": 
-    {
-        "three": "./mods/three/build/three.module.js",
-        "three/addons/": "./mods/three/examples/jsm/"
+    const lightBoxGeometry = new THREE.BoxGeometry(width, height, depth);
+    const lightBoxMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff });
+
+    super(lightBoxGeometry, lightBoxMaterial);
+
+    // Create a point light and position it at the center of the light box
+    const pointLight = new THREE.PointLight(0xffffff, 100); // White light with intensity 1
+    pointLight.position.set(0, 0, 0);
+    pointLight.distance = distance;
+
+    // Add the point light as a child of the light box
+    this.add(pointLight);
+}
+}
+let debugCamera, debugScene;
+
+init();
+animate();
+
+function init() {
+    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
+    camera.position.y = 10; 
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color( 0x000000 );
+    scene.fog = new THREE.Fog( 0x5500ff, 0, 750 );
+
+    //const light = new THREE.HemisphereLight( 0xeeeeff, 0x777788, 2.5 );
+    //light.position.set( 0.5, 1, 0.75 );
+    //scene.add( light );
+
+    controls = new PointerLockControls( camera, document.body );
+
+    const blocker = document.getElementById( 'blocker' );
+    const instructions = document.getElementById( 'instructions' );
+
+    instructions.addEventListener( 'click', function () {
+
+        controls.lock();
+
+    } );
+
+    controls.addEventListener( 'lock', function () {
+
+        instructions.style.display = 'none';
+        blocker.style.display = 'none';
+
+    } );
+
+    controls.addEventListener( 'unlock', function () {
+
+        blocker.style.display = 'block';
+        instructions.style.display = '';
+
+    } );
+
+    scene.add( controls.getObject() );
+
+    const onKeyDown = function ( event ) {
+
+        switch ( event.code ) {
+
+            case 'ArrowUp':
+            case 'KeyW':
+                moveForward = true;
+                break;
+
+            case 'ArrowLeft':
+            case 'KeyA':
+                moveLeft = true;
+                break;
+
+            case 'ArrowDown':
+            case 'KeyS':
+                moveBackward = true;
+                break;
+
+            case 'ArrowRight':
+            case 'KeyD':
+                moveRight = true;
+                break;
+
+            case 'Space':
+                if ( canJump === true ) velocity.y += 100;
+                canJump = false;
+                break;
+
+        }
+
+    };
+
+    const onKeyUp = function ( event ) {
+
+        switch ( event.code ) {
+
+            case 'ArrowUp':
+            case 'KeyW':
+                moveForward = false;
+                break;
+
+            case 'ArrowLeft':
+            case 'KeyA':
+                moveLeft = false;
+                break;
+
+            case 'ArrowDown':
+            case 'KeyS':
+                moveBackward = false;
+                break;
+
+            case 'ArrowRight':
+            case 'KeyD':
+                moveRight = false;
+                break;
+
+        }
+
+    };
+
+    document.addEventListener( 'keydown', onKeyDown );
+    document.addEventListener( 'keyup', onKeyUp );
+
+    rayBottom = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 );
+    rayTop = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 );
+    rayForward = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 ); 
+    rayBackward = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 );
+    raySideRight = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 );
+    raySideLeft = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 );
+
+    // floor
+    let floorGeometry = new THREE.PlaneGeometry( 2000, 2000, 100, 100 );
+    floorGeometry.rotateX( - Math.PI / 2 );
+    //
+
+    // Room
+    const roomGeometry = new THREE.BoxGeometry(80, 25 , 65);
+    
+
+    const roomMaterials = 
+    [
+        new THREE.MeshPhongMaterial({ color: 0xff0000, side: THREE.BackSide }), // Right face - Red
+        new THREE.MeshPhongMaterial({ color: 0x00ff00, side: THREE.BackSide }), // Left face - Green
+        new THREE.MeshPhongMaterial({ color: 0x0000ff, side: THREE.BackSide }), // Top face - Blue
+        new THREE.MeshPhongMaterial({ color: 0xffff00, side: THREE.BackSide }), // Bottom face - Yellow
+        new THREE.MeshPhongMaterial({ color: 0xff00ff, side: THREE.BackSide }), // Front face - Magenta
+        new THREE.MeshPhongMaterial({ color: 0x00ffff, side: THREE.BackSide }), // Back face - Cyan
+    ];
+
+    const roomMesh = new THREE.Mesh( roomGeometry, roomMaterials );
+    roomMesh.position.set(0, 14.5, 0);
+    scene.add( roomMesh );
+
+    objects.push(roomMesh)
+    //
+
+    // Lightboxes
+    const light_1 = new LightBox(200);
+    light_1.position.set(-5,11.5,0)
+
+    const light_2 = new LightBox(200);
+    light_2.position.set(5,11.5,0)
+
+    roomMesh.add( light_1 );
+    roomMesh.add( light_2 );
+    //
+
+    // vertex displacement
+
+    let position = floorGeometry.attributes.position;
+
+    for ( let i = 0, l = position.count; i < l; i ++ ) {
+
+        vertex.fromBufferAttribute( position, i );
+
+        vertex.x += Math.random() * 20 - 10;
+        vertex.y += Math.random() * 2;
+        vertex.z += Math.random() * 20 - 10;
+
+        position.setXYZ( i, vertex.x, vertex.y, vertex.z );
 
     }
-}
-  
-</script>
+
+    floorGeometry = floorGeometry.toNonIndexed(); // ensure each face has unique vertices
+
+    position = floorGeometry.attributes.position;
+    const colorsFloor = [];
+
+    for ( let i = 0, l = position.count; i < l; i ++ ) {
+
+        color.setHSL( Math.random() * 0.5 - 0.6, 1, Math.random() * 0.8 - 0.3, THREE.SRGBColorSpace );
+        colorsFloor.push( color.r, color.g, color.b );
+
+    }
+
+    floorGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colorsFloor, 3 ) );
+
+    const floorMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
+
+    const floor = new THREE.Mesh( floorGeometry, floorMaterial );
+    scene.add( floor );
 
 
-<script type="module">
-   
 
-	import * as THREE from 'three';
-	import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-	import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
+    renderer.setPixelRatio( window.devicePixelRatio );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
 
-	import {FirstPersonControls} from './mods/three/examples/jsm/controls/FirstPersonControls.js';
+    //
 
-function main() {
-
-	const canvas = document.querySelector( '#c' );
-	const renderer = new THREE.WebGLRenderer( { antialias: true, canvas } );
-
-	const fov = 45;
-	const aspect = 2; // the canvas default
-	const near = 0.1;
-	const far = 100;
-	const camera = new THREE.PerspectiveCamera( fov, aspect, near, far );
-	camera.position.set( 0, 10, 20 );
-
-	const controls = new FirstPersonControls(camera, document.body);
-	controls.movementSpeed = 150;
-	controls.lookSpeed = 1;
-
-	const scene = new THREE.Scene();
-	scene.background = new THREE.Color( 'black' );
-
-	// // Ground
-
-		const planeSize = 40;
-
-		const loader = new THREE.TextureLoader();
-		const texture = loader.load( 'resources/images/checker.png' );
-		texture.wrapS = THREE.RepeatWrapping;
-		texture.wrapT = THREE.RepeatWrapping;
-		texture.magFilter = THREE.NearestFilter;
-		texture.colorSpace = THREE.SRGBColorSpace;
-		const repeats = planeSize / 2;
-		texture.repeat.set( repeats, repeats );
-
-		const planeGeo = new THREE.PlaneGeometry( planeSize, planeSize );
-		const planeMat = new THREE.MeshPhongMaterial( {
-			map: texture,
-			side: THREE.DoubleSide,
-		} );
-		const ground = new THREE.Mesh( planeGeo, planeMat );
-		ground.rotation.x = Math.PI * - .5;
-		scene.add( ground );
-
-	//
-
-	// // Cube
-	const cubeTexture = loader.load('resources/images/checker.png');
-	cubeTexture.wrapS = THREE.RepeatWrapping;
-	cubeTexture.wrapT = THREE.RepeatWrapping;
-	cubeTexture.repeat.set(1, 1); // Adjust the repeat values to control the number of repetitions
-
-	const cubeSize = 4;
-	const cubeGeo = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-	const cubeMat = new THREE.MeshPhongMaterial({ map: cubeTexture }); // Apply the texture to the material
-
-	const cube = new THREE.Mesh(cubeGeo, cubeMat);
-	cube.position.set(cubeSize + 1, cubeSize / 2, 0);
-	scene.add(cube);
-
-
-	//
-
-	// // Sphere
-
-		const sphereRadius = 3;
-		const sphereWidthDivisions = 32;
-		const sphereHeightDivisions = 16;
-		const sphereGeo = new THREE.SphereGeometry( sphereRadius, sphereWidthDivisions, sphereHeightDivisions );
-		const sphereMat = new THREE.MeshPhongMaterial( { color: '#CA8' } );
-		const sphere = new THREE.Mesh( sphereGeo, sphereMat );
-		sphere.position.set( - sphereRadius - 1, sphereRadius + 2, 0 );
-		scene.add( sphere );
-
-	//
-
-	class ColorGUIHelper {
-
-		constructor( object, prop ) {
-
-			this.object = object;
-			this.prop = prop;
-
-		}
-		get value() {
-
-			return `#${this.object[ this.prop ].getHexString()}`;
-
-		}
-		set value( hexString ) {
-
-			this.object[ this.prop ].set( hexString );
-
-		}
-
-	}
-
-	function makeXYZGUI( gui, vector3, name, onChangeFn ) {
-
-		const folder = gui.addFolder( name );
-		folder.add( vector3, 'x', - 10, 10 ).onChange( onChangeFn );
-		folder.add( vector3, 'y', 0, 10 ).onChange( onChangeFn );
-		folder.add( vector3, 'z', - 10, 10 ).onChange( onChangeFn );
-		folder.open();
-
-	}
-
-	{
-
-		const color = 0xFFFFFF;
-		const intensity = 150;
-		const light = new THREE.PointLight( color, intensity );
-		light.position.set( 0, 10, 0 );
-		scene.add( light );
-
-		const helper = new THREE.PointLightHelper( light );
-		scene.add( helper );
-
-		function updateLight() {
-
-			//light.target.updateMatrixWorld();
-			helper.update();
-
-		}
-
-		updateLight();
-
-		const gui = new GUI();
-		gui.addColor( new ColorGUIHelper( light, 'color' ), 'value' ).name( 'color' );
-		gui.add( light, 'intensity', 0, 5, 0.01 );
-        gui.add(light, 'distance', 0, 40).onChange(updateLight);
-
-		makeXYZGUI( gui, light.position, 'position', updateLight );
-
-	}
-
-	function resizeRendererToDisplaySize( renderer ) {
-
-		const canvas = renderer.domElement;
-		const width = canvas.clientWidth;
-		const height = canvas.clientHeight;
-		const needResize = canvas.width !== width || canvas.height !== height;
-		if ( needResize ) {
-
-			renderer.setSize( width, height, false );
-
-		}
-
-		return needResize;
-
-	}
-
-	var omegaTime = 0; // Time between this frame and the next one
-	function fixedUpdate( time )
-	{
-		const deltaTime = time - omegaTime; // Calc elapsed time since last frame
-		cube.rotation.y = (deltaTime/1000);
-
-		controls.update(deltaTime);
-		renderer.render(scene, camera);
-
-		
-		requestAnimationFrame( fixedUpdate );
-	}
-
-	function render() {
-
-		if ( resizeRendererToDisplaySize( renderer ) ) {
-
-			const canvas = renderer.domElement;
-			camera.aspect = canvas.clientWidth / canvas.clientHeight;
-			camera.updateProjectionMatrix();
-
-		}
-
-		renderer.render( scene, camera );
-
-		requestAnimationFrame( render );
-
-	}
-
-	requestAnimationFrame( fixedUpdate );
-	requestAnimationFrame( render );
+    window.addEventListener( 'resize', onWindowResize );
 
 }
 
-main();
+function onWindowResize() {
 
-</script>
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
 
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+}
+
+function animate() {
+
+    requestAnimationFrame( animate );
+
+    const time = performance.now();
+            if (controls.isLocked === true) {
+                const playerObject = controls.getObject();
+
+                // Bottom
+                rayBottom.ray.origin.copy(playerObject.position);
+                rayBottom.ray.origin.y -= 1;
+
+                const intersectBottom = rayBottom.intersectObjects(objects, false);
+                const onObjectBottom = intersectBottom.length > 0;
+
+                // Top
+                rayTop.ray.origin.copy(playerObject.position);
+
+                const intersectTop = rayTop.intersectObjects(objects, false);
+                const onObjectTop = intersectTop.length > 0;
+
+                // Forward
+                rayForward.ray.origin.copy(playerObject.position);
+                const strippedQuaternionForward = playerObject.quaternion.clone();
+                rayBottom.ray.origin.y += 1;
+                strippedQuaternionForward.x = 0; // Strip x-axis rotation
+                strippedQuaternionForward.z = 0; // Strip z-axis rotation
+                rayForward.ray.direction.set(0, 0, 1).applyQuaternion(strippedQuaternionForward);
+
+                const intersectForward = rayForward.intersectObjects(objects, false);
+                const onObjectForward = intersectForward.length > 0;
+
+                // Backward
+                rayBackward.ray.origin.copy(playerObject.position);
+                const strippedQuaternionBackward = playerObject.quaternion.clone();
+                rayBottom.ray.origin.y += 1;
+                strippedQuaternionBackward.x = 0; // Strip x-axis rotation
+                strippedQuaternionBackward.z = 0; // Strip z-axis rotation
+                rayBackward.ray.direction.set(0, 0, -1).applyQuaternion(strippedQuaternionBackward);
+
+                const intersectBackward = rayBackward.intersectObjects(objects, false);
+                const onObjectBackward = intersectBackward.length > 0;
+
+                // Right
+                raySideRight.ray.origin.copy(playerObject.position);
+                const strippedQuaternionRight = playerObject.quaternion.clone();
+                rayBottom.ray.origin.y += 1;
+                strippedQuaternionRight.x = 0; // Strip x-axis rotation
+                strippedQuaternionRight.z = 0; // Strip z-axis rotation
+                raySideRight.ray.direction.set(1, 0, 0).applyQuaternion(strippedQuaternionRight);
+
+                const intersectRight = raySideRight.intersectObjects(objects, false);
+                const onObjectRight = intersectRight.length > 0;
+
+                // Left
+                raySideLeft.ray.origin.copy(playerObject.position);
+                const strippedQuaternionLeft = playerObject.quaternion.clone();
+                rayBottom.ray.origin.y += 1;
+                strippedQuaternionLeft.x = 0; // Strip x-axis rotation
+                strippedQuaternionLeft.z = 0; // Strip z-axis rotation
+                raySideLeft.ray.direction.set(-1, 0, 0).applyQuaternion(strippedQuaternionLeft);
+
+                const intersectLeft = raySideLeft.intersectObjects(objects, false);
+                const onObjectLeft = intersectLeft.length > 0;
+
+
+
+
+        const delta = ( time - prevTime ) / 1000;
+
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+
+        velocity.y -= 5.8 * 50.0 * delta; // 100.0 = mass
+
+        direction.z = Number( moveForward ) - Number( moveBackward );
+        direction.x = Number( moveRight ) - Number( moveLeft );
+        direction.normalize(); // this ensures consistent movements in all directions
+
+        if ( moveForward || moveBackward ) velocity.z -= direction.z * 400.0 * delta;
+        if ( moveLeft || moveRight ) velocity.x -= direction.x * 400.0 * delta;
+
+        if ( onObjectBottom === true ) {
+
+            velocity.y = Math.max( 0, velocity.y );
+            canJump = true;
+        }
+
+        if ( onObjectTop === true ) {
+            velocity.y = Math.min( 0, velocity.y );
+        }
+
+        if ( onObjectForward === true ) {
+            velocity.z = Math.min( 0, velocity.z );
+        }
+
+        if ( onObjectBackward === true ) {
+            velocity.z = Math.max( 0, velocity.z );
+        }
+        if ( onObjectRight === true ) {
+            velocity.x = Math.max( 0, velocity.x );
+        }
+
+        if ( onObjectLeft === true ) {
+            velocity.x = Math.min( 0, velocity.x );
+        }
+
+        controls.moveRight( - velocity.x * delta );
+        controls.moveForward( - velocity.z * delta );
+
+        controls.getObject().position.y += ( velocity.y * delta ); // new behavior
+
+        if ( controls.getObject().position.y < 10 ) {
+
+            velocity.y = 0;
+            controls.getObject().position.y = 10;
+
+            canJump = true;
+
+        }
+        document.getElementById("rotx").textContent = "Rot X: " + (controls.getObject().rotation.x * 180/Math.PI);
+        document.getElementById("roty").textContent = "Rot Y: " + controls.getObject().rotation.y * 180/Math.PI;
+        document.getElementById("rotz").textContent = "Rot Z: " + controls.getObject().rotation.z * 180/Math.PI;
+    }
+
+    prevTime = time;
+
+    renderer.render( scene, camera );
+
+}
+
+
+		</script>
+	</body>
 </html>
