@@ -33,6 +33,7 @@
 		</style>
 	</head>
 	<body>
+		        <script src="build/cannon.js"></script>
         <div id="data"><div id="rotx">TEST</div><div id="roty">TEST</div><div id="rotz">TEST</div></div>
 		<div id="blocker">
 			<div id="instructions">
@@ -88,7 +89,7 @@ const vertex = new THREE.Vector3();
 const color = new THREE.Color();
 
 class LightBox extends THREE.Mesh {
-constructor(distance = 5, height = 0.5, width = 4, depth = 10) 
+constructor(distance = 5, height = 0.5, width = 4, depth = 10)
 {
     const lightBoxGeometry = new THREE.BoxGeometry(width, height, depth);
     const lightBoxMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff });
@@ -116,10 +117,6 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0x000000 );
     scene.fog = new THREE.Fog( 0x5500ff, 0, 750 );
-
-    //const light = new THREE.HemisphereLight( 0xeeeeff, 0x777788, 2.5 );
-    //light.position.set( 0.5, 1, 0.75 );
-    //scene.add( light );
 
     controls = new PointerLockControls( camera, document.body );
 
@@ -219,24 +216,19 @@ function init() {
     raySideRight = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 );
     raySideLeft = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3(), 0, 10 );
 
+	// Player
+	controls.getObject().position.set(0,5,50)
+
     // floor
     let floorGeometry = new THREE.PlaneGeometry( 2000, 2000, 100, 100 );
     floorGeometry.rotateX( - Math.PI / 2 );
     //
 
     // Room
-    const roomGeometry = new THREE.BoxGeometry(80, 25 , 65);
+    const roomGeometry = new THREE.BoxGeometry(40, 25 , 20);
     
 
-    const roomMaterials = 
-    [
-        new THREE.MeshPhongMaterial({ color: 0xff0000, side: THREE.BackSide }), // Right face - Red
-        new THREE.MeshPhongMaterial({ color: 0x00ff00, side: THREE.BackSide }), // Left face - Green
-        new THREE.MeshPhongMaterial({ color: 0x0000ff, side: THREE.BackSide }), // Top face - Blue
-        new THREE.MeshPhongMaterial({ color: 0xffff00, side: THREE.BackSide }), // Bottom face - Yellow
-        new THREE.MeshPhongMaterial({ color: 0xff00ff, side: THREE.BackSide }), // Front face - Magenta
-        new THREE.MeshPhongMaterial({ color: 0x00ffff, side: THREE.BackSide }), // Back face - Cyan
-    ];
+    const roomMaterials = new THREE.MeshPhongMaterial();
 
     const roomMesh = new THREE.Mesh( roomGeometry, roomMaterials );
     roomMesh.position.set(0, 14.5, 0);
@@ -247,13 +239,21 @@ function init() {
 
     // Lightboxes
     const light_1 = new LightBox(200);
-    light_1.position.set(-5,11.5,0)
+    light_1.position.set(-25,15.5,0)
 
     const light_2 = new LightBox(200);
-    light_2.position.set(5,11.5,0)
+    light_2.position.set(25,15.5,0)
+
+	const light_3 = new LightBox(200, 0.5, 40, 4);
+    light_3.position.set(0,15.5,15)
+
+    const light_4 = new LightBox(200, 0.5, 40, 4);
+    light_4.position.set(0,15.5,-15)
 
     roomMesh.add( light_1 );
     roomMesh.add( light_2 );
+	roomMesh.add( light_3 );
+    roomMesh.add( light_4 );
     //
 
     // vertex displacement
@@ -337,7 +337,7 @@ function animate() {
                 // Forward
                 rayForward.ray.origin.copy(playerObject.position);
                 const strippedQuaternionForward = playerObject.quaternion.clone();
-                rayBottom.ray.origin.y += 1;
+
                 strippedQuaternionForward.x = 0; // Strip x-axis rotation
                 strippedQuaternionForward.z = 0; // Strip z-axis rotation
                 rayForward.ray.direction.set(0, 0, 1).applyQuaternion(strippedQuaternionForward);
@@ -348,7 +348,7 @@ function animate() {
                 // Backward
                 rayBackward.ray.origin.copy(playerObject.position);
                 const strippedQuaternionBackward = playerObject.quaternion.clone();
-                rayBottom.ray.origin.y += 1;
+
                 strippedQuaternionBackward.x = 0; // Strip x-axis rotation
                 strippedQuaternionBackward.z = 0; // Strip z-axis rotation
                 rayBackward.ray.direction.set(0, 0, -1).applyQuaternion(strippedQuaternionBackward);
@@ -359,7 +359,7 @@ function animate() {
                 // Right
                 raySideRight.ray.origin.copy(playerObject.position);
                 const strippedQuaternionRight = playerObject.quaternion.clone();
-                rayBottom.ray.origin.y += 1;
+
                 strippedQuaternionRight.x = 0; // Strip x-axis rotation
                 strippedQuaternionRight.z = 0; // Strip z-axis rotation
                 raySideRight.ray.direction.set(1, 0, 0).applyQuaternion(strippedQuaternionRight);
@@ -370,7 +370,7 @@ function animate() {
                 // Left
                 raySideLeft.ray.origin.copy(playerObject.position);
                 const strippedQuaternionLeft = playerObject.quaternion.clone();
-                rayBottom.ray.origin.y += 1;
+				
                 strippedQuaternionLeft.x = 0; // Strip x-axis rotation
                 strippedQuaternionLeft.z = 0; // Strip z-axis rotation
                 raySideLeft.ray.direction.set(-1, 0, 0).applyQuaternion(strippedQuaternionLeft);
